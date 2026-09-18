@@ -1,8 +1,9 @@
 name: CI
 
+# 不限制分支：两个仓库的默认分支命名不一致（main / Master），
+# 限制分支容易导致 CI 静默不触发。
 on:
   push:
-    branches: [ main, master ]
   pull_request:
   workflow_dispatch:
 
