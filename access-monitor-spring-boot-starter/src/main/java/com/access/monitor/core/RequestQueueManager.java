@@ -3,7 +3,6 @@ package com.access.monitor.core;
 import com.access.monitor.properties.AccessMonitorProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -35,7 +34,6 @@ import java.util.concurrent.*;
  * 但需要注意：{@code Semaphore} 和 {@code BlockingQueue} 本身已经是线程安全的并发容器，无需额外加锁。
  * </p>
  */
-@Component
 public class RequestQueueManager {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestQueueManager.class);
@@ -109,9 +107,21 @@ public class RequestQueueManager {
         Semaphore semaphore = keySemaphores.computeIfAbsent(key,
             k -> new Semaphore(properties.getQueue().getMaxConcurrentPerKey()));
 
+        // 步骤2.1：队列容量校验。LinkedBlockingQueue 不接受容量为 0 或负数的队列，
+        // 而 max-queue-size-per-key 配置为 0 表示"不提供排队能力，超限直接拒绝"，
+        // 因此这里显式处理该配置，避免运行时抛出 IllegalArgumentException 导致请求返回 500。
+        int maxQueueSize = properties.getQueue().getMaxQueueSizePerKey();
+        if (maxQueueSize <= 0) {
+            if (semaphore.tryAcquire()) {
+                return true;
+            }
+            logger.warn("队列容量配置为 {}，不提供排队能力，直接拒绝请求 - Key: {}", maxQueueSize, key);
+            return false;
+        }
+
         // 步骤3：获取或创建该Key的阻塞队列。使用 LinkedBlockingQueue 实现 FIFO 排队。
         BlockingQueue<QueuedRequest> queue = keyQueues.computeIfAbsent(key,
-            k -> new LinkedBlockingQueue<>(properties.getQueue().getMaxQueueSizePerKey()));
+            k -> new LinkedBlockingQueue<>(maxQueueSize));
 
         // 步骤4：尝试直接获取信号量许可。tryAcquire() 是非阻塞的，立即返回结果。
         // 如果获取成功，说明当前并发数未达到上限，请求可以直接执行。
