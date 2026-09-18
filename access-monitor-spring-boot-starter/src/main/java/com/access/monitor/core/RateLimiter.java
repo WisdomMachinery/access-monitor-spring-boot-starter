@@ -3,7 +3,6 @@ package com.access.monitor.core;
 import com.access.monitor.properties.AccessMonitorProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -38,7 +37,6 @@ import java.util.concurrent.*;
  * 防止长期运行的系统中内存持续增长。
  * </p>
  */
-@Component
 public class RateLimiter {
 
     private static final Logger logger = LoggerFactory.getLogger(RateLimiter.class);

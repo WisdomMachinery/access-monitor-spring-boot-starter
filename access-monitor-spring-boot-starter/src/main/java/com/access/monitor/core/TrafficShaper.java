@@ -3,7 +3,6 @@ package com.access.monitor.core;
 import com.access.monitor.properties.AccessMonitorProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +35,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 两者配合使用，形成"单客户端限流 + 全局流量整形"的两层防御体系。
  * </p>
  */
-@Component
 public class TrafficShaper {
 
     private static final Logger logger = LoggerFactory.getLogger(TrafficShaper.class);

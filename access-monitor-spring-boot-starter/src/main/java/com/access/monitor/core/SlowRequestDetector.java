@@ -5,7 +5,6 @@ import jakarta.servlet.AsyncEvent;
 import jakarta.servlet.AsyncListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -45,7 +44,6 @@ import java.util.concurrent.*;
  * </ul>
  * </p>
  */
-@Component
 public class SlowRequestDetector {
 
     private static final Logger logger = LoggerFactory.getLogger(SlowRequestDetector.class);

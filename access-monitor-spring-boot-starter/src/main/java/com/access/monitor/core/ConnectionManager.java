@@ -3,7 +3,6 @@ package com.access.monitor.core;
 import com.access.monitor.properties.AccessMonitorProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -41,7 +40,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 两者分别从业务和传输两个层面保护系统。
  * </p>
  */
-@Component
 public class ConnectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);

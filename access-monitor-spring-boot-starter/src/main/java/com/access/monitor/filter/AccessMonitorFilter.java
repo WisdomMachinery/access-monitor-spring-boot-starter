@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import java.io.IOException;
@@ -73,7 +72,6 @@ import java.util.UUID;
  * 特别是在 {@code InterruptedException} 场景下，会重新设置线程中断标志并释放资源。
  * </p>
  */
-@Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class AccessMonitorFilter implements Filter {
 
