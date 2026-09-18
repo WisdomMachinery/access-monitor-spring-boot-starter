@@ -2,7 +2,9 @@ package com.access.monitor.config;
 
 import com.access.monitor.core.*;
 import com.access.monitor.filter.AccessMonitorFilter;
+import com.access.monitor.endpoint.AccessMonitorEndpoint;
 import com.access.monitor.properties.AccessMonitorProperties;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -153,5 +155,45 @@ public class AccessMonitorAutoConfiguration {
                                                     SlowRequestDetector slowRequestDetector,
                                                     ConnectionManager connectionManager) {
         return new AccessMonitorFilter(properties, rateLimiter, queueManager, trafficShaper, slowRequestDetector, connectionManager);
+    }
+
+    /**
+     * Actuator 管理端点配置。
+     * <p>
+     * actuator 是本 Starter 的<strong>可选依赖</strong>，因此这里用独立的内部配置类配合
+     * {@code @ConditionalOnClass} 做隔离：未引入 actuator 的应用不会因为缺少端点相关类而启动失败。
+     * </p>
+     * <p>
+     * 端点 Bean 只在 {@code management.endpoint.accessmonitor.enabled} 不为 false 时创建，
+     * 是否通过 HTTP 暴露仍由使用方的 {@code management.endpoints.web.exposure.include} 决定，
+     * 与 Spring Boot 对第三方端点的处理方式保持一致。
+     * </p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(Endpoint.class)
+    static class AccessMonitorEndpointConfiguration {
+
+        /**
+         * 创建并注册访问监控的 Actuator 端点 Bean。
+         *
+         * @param properties           配置属性
+         * @param rateLimiter          速率限制器
+         * @param queueManager         请求队列管理器
+         * @param trafficShaper        流量整形器
+         * @param slowRequestDetector  慢请求检测器
+         * @param connectionManager    连接管理器
+         * @return 访问监控端点实例
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @ConditionalOnProperty(prefix = "management.endpoint.accessmonitor", name = "enabled", matchIfMissing = true)
+        public AccessMonitorEndpoint accessMonitorEndpoint(AccessMonitorProperties properties,
+                                                           RateLimiter rateLimiter,
+                                                           RequestQueueManager queueManager,
+                                                           TrafficShaper trafficShaper,
+                                                           SlowRequestDetector slowRequestDetector,
+                                                           ConnectionManager connectionManager) {
+            return new AccessMonitorEndpoint(properties, rateLimiter, queueManager, trafficShaper, slowRequestDetector, connectionManager);
+        }
     }
 }

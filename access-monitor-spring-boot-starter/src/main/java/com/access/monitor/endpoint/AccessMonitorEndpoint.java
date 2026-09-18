@@ -5,10 +5,11 @@ import com.access.monitor.properties.AccessMonitorProperties;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Selector;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.actuate.endpoint.web.WebEndpointResponse;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -34,15 +35,22 @@ import java.util.stream.Collectors;
  * </ul>
  * </p>
  * <p>
+ * <strong>路径映射说明：</strong>
+ * Spring Boot 3 的端点模型中，操作路径由 {@link Selector} 参数决定，方法名不参与路径拼接。
+ * 因此这里只有根操作 {@code status()} 不带选择器，所有子资源统一由 {@code section(selector)}
+ * 暴露；若为每个子资源各写一个无选择器的方法，多个操作会因为映射到同一路径而在启动期报
+ * {@code Unable to map duplicate endpoint operations}。
+ * </p>
+ * <p>
  * <strong>安全提示：</strong>
  * Actuator 端点可能暴露敏感的系统运行信息（如被封禁的IP列表、当前连接数等），
  * 在生产环境中应确保这些端点受到适当的访问控制（如通过 Spring Security 限制仅管理员可访问），
  * 或者将其配置为不暴露到公网（通过 management.server.port 设置独立的管理端口，并限制网络访问）。
  * </p>
  */
-@Component
 @Endpoint(id = "accessmonitor")
 public class AccessMonitorEndpoint {
+
 
     /** 访问监控模块的配置属性，用于返回配置信息。 */
     private final AccessMonitorProperties properties;
@@ -111,7 +119,6 @@ public class AccessMonitorEndpoint {
      *
      * @return 速率限制状态 Map
      */
-    @ReadOperation
     public Map<String, Object> rateLimitStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", properties.getRateLimit().isEnabled());
@@ -137,7 +144,6 @@ public class AccessMonitorEndpoint {
      *
      * @return 队列状态 Map
      */
-    @ReadOperation
     public Map<String, Object> queueStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", properties.getQueue().isEnabled());
@@ -155,7 +161,6 @@ public class AccessMonitorEndpoint {
      *
      * @return 流量整形状态 Map
      */
-    @ReadOperation
     public Map<String, Object> trafficShaperStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", properties.getTrafficShaper().isEnabled());
@@ -174,7 +179,6 @@ public class AccessMonitorEndpoint {
      *
      * @return 慢请求检测状态 Map
      */
-    @ReadOperation
     public Map<String, Object> slowRequestStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", properties.getSlowRequest().isEnabled());
@@ -206,7 +210,6 @@ public class AccessMonitorEndpoint {
      *
      * @return 连接数限制状态 Map
      */
-    @ReadOperation
     public Map<String, Object> connectionStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("enabled", properties.getConnectionLimit().isEnabled());
@@ -217,31 +220,79 @@ public class AccessMonitorEndpoint {
     }
 
     /**
-     * 查询特定Key的详细访问记录。
+     * 按名称查询单个子系统的状态。
      * <p>
-     * 通过路径参数传入Key（如 {@code "ip:192.168.1.1"} 或 {@code "acct:zhangsan"}），
-     * 返回该Key对应的 {@link AccessRecord} 中的详细信息，包括当前请求计数、是否被封禁、
-     * 封禁截止时间、窗口起始时间等。
+     * Spring Boot 3 的端点模型下，操作的 HTTP 路径由 {@link Selector} 参数决定而非方法名：
+     * 没有选择器参数的操作映射到端点根路径，带选择器参数的操作映射为路径变量。
+     * 因此所有子资源统一由该方法暴露，访问形如 {@code GET /actuator/accessmonitor/rateLimitStatus}。
      * </p>
      *
-     * @param key 限流标识Key
-     * @return 该Key的详细访问记录，如果Key不存在则返回错误提示
+     * @param section 子系统名称，支持 {@code rateLimitStatus}、{@code queueStatus}、
+     *                {@code trafficShaperStatus}、{@code slowRequestStatus}、{@code connectionStatus}
+     * @return 对应子系统的状态；名称非法时返回 404 与可用名称列表
      */
     @ReadOperation
-    public Map<String, Object> record(@Selector String key) {
-        Map<String, Object> result = new HashMap<>();
-        AccessRecord record = rateLimiter.getRecord(key);
-        if (record != null) {
-            result.put("key", record.getKey());
-            result.put("requestCount", record.getRequestCount());
-            result.put("banned", record.isBanned());
-            if (record.getBannedUntil() != null) {
-                result.put("bannedUntil", record.getBannedUntil().toString());
-            }
-            result.put("firstRequestTime", record.getFirstRequestTime().toString());
-        } else {
-            result.put("error", "未找到该Key的访问记录");
+    public WebEndpointResponse<Map<String, Object>> section(@Selector String section) {
+        return switch (section) {
+            case "rateLimitStatus" -> new WebEndpointResponse<>(rateLimitStatus());
+            case "queueStatus" -> new WebEndpointResponse<>(queueStatus());
+            case "trafficShaperStatus" -> new WebEndpointResponse<>(trafficShaperStatus());
+            case "slowRequestStatus" -> new WebEndpointResponse<>(slowRequestStatus());
+            case "connectionStatus" -> new WebEndpointResponse<>(connectionStatus());
+            default -> new WebEndpointResponse<>(unknownSection(section), WebEndpointResponse.STATUS_NOT_FOUND);
+        };
+    }
+
+    /**
+     * 查询特定Key的详细访问记录。
+     * <p>
+     * 访问路径为 {@code GET /actuator/accessmonitor/record/{key}}，其中 Key 形如
+     * {@code ip:192.168.1.1} 或 {@code acct:zhangsan}。
+     * 返回该Key对应 {@link AccessRecord} 的详细信息，包括当前请求计数、是否被封禁、
+     * 封禁截止时间、窗口起始时间等；Key 不存在时返回 404。
+     * </p>
+     *
+     * @param type 固定为 {@code record}，用于与其他子资源路径区分
+     * @param key  限流标识Key
+     * @return 该Key的详细访问记录
+     */
+    @ReadOperation
+    public WebEndpointResponse<Map<String, Object>> record(@Selector String type,
+                                                          @Selector String key) {
+        if (!"record".equals(type)) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("error", "未知的路径: " + type);
+            body.put("hint", "查询访问记录请使用 /actuator/accessmonitor/record/{key}");
+            return new WebEndpointResponse<>(body, WebEndpointResponse.STATUS_NOT_FOUND);
         }
-        return result;
+        AccessRecord record = rateLimiter.getRecord(key);
+        if (record == null) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("error", "未找到该Key的访问记录");
+            return new WebEndpointResponse<>(body, WebEndpointResponse.STATUS_NOT_FOUND);
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("key", record.getKey());
+        result.put("requestCount", record.getRequestCount());
+        result.put("banned", record.isBanned());
+        if (record.getBannedUntil() != null) {
+            result.put("bannedUntil", record.getBannedUntil().toString());
+        }
+        result.put("firstRequestTime", record.getFirstRequestTime().toString());
+        return new WebEndpointResponse<>(result);
+    }
+
+    /**
+     * 构造"未知子系统"的响应体，返回可用名称列表便于调用方纠正。
+     *
+     * @param section 调用方传入的非法名称
+     * @return 错误说明 Map
+     */
+    private Map<String, Object> unknownSection(String section) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "未知的子系统名称: " + section);
+        body.put("available", List.of("rateLimitStatus", "queueStatus", "trafficShaperStatus",
+            "slowRequestStatus", "connectionStatus"));
+        return body;
     }
 }
