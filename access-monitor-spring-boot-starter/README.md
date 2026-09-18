@@ -418,6 +418,37 @@ management:
         include: health,info,accessmonitor
 ```
 
+### 6.8 启用监控端点的前提条件
+
+监控端点由 Spring Boot Actuator 提供，本 Starter 在满足以下条件时才会注册端点 Bean：
+
+1. 应用中引入了 `spring-boot-starter-actuator`（本 Starter 中 actuator 是可选依赖，不会强制传递给使用方）；
+2. 通过 `management.endpoints.web.exposure.include` 暴露 `accessmonitor`；
+3. 没有通过 `management.endpoint.accessmonitor.enabled=false` 显式关闭端点。
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: accessmonitor
+```
+
+暴露后可访问的路径：
+
+| 路径 | 说明 |
+|---|---|
+| `GET /actuator/accessmonitor` | 所有子系统状态总览 |
+| `GET /actuator/accessmonitor/rateLimitStatus` | 限流状态（含被封禁的 Key 列表） |
+| `GET /actuator/accessmonitor/queueStatus` | 队列配置与状态 |
+| `GET /actuator/accessmonitor/trafficShaperStatus` | 令牌桶配置与剩余令牌 |
+| `GET /actuator/accessmonitor/slowRequestStatus` | 慢请求配置与在跟踪请求列表 |
+| `GET /actuator/accessmonitor/connectionStatus` | 连接数限制状态 |
+| `GET /actuator/accessmonitor/record/{key}` | 查询单个限流 Key 的访问记录 |
+
+> 说明：Spring Boot 3 的端点路径由 `@Selector` 参数决定而非方法名，因此子资源统一以
+> `/{section}` 形式暴露。访问未支持的分段会返回 404 以及可用的分段列表。
+
 ### 6.7 配置热更新
 
 当前版本不支持配置热更新（运行时动态修改配置）。所有配置在应用启动时读取并初始化。
@@ -565,3 +596,57 @@ management:
 ## 十一、开源协议
 
 本项目采用 Apache License 2.0 开源协议。
+
+
+---
+
+## 十二、开发与构建
+
+### 12.1 环境要求
+
+- JDK 17 及以上
+- 无需预装 Maven，仓库自带 Maven Wrapper（`mvnw` / `mvnw.cmd`）
+
+### 12.2 常用命令
+
+```bash
+./mvnw clean verify        # 编译并运行全部测试，与 CI 使用的命令一致
+./mvnw spring-boot:run     # 本地联调（启动类位于 src/test，不会打包进 jar）
+```
+
+### 12.3 关于构建产物
+
+本模块是供其他项目依赖的 Starter 库，`spring-boot-maven-plugin` 的 `repackage` 已被显式禁用：
+
+- 产物是普通 thin jar，业务类位于 jar 根路径，可被其他项目正常依赖；
+- 不会生成 `BOOT-INF/classes` 结构的可执行 fat jar；
+- 仓库的 `src/main` 中不保留任何 `@SpringBootApplication` 启动类。
+
+### 12.4 提交前检查
+
+CI（`.github/workflows/ci.yml`）会在 JDK 17 与 21 上执行 `./mvnw verify`，
+提交 PR 前请在本地执行同一条命令，确保测试全绿。### 12.5 发布流程
+
+本项目的版本号与发布由「标签驱动」，流程如下：
+
+1. 确认 `main` 分支 CI 全绿；
+2. 修改 `pom.xml` 中的 `<version>`，并更新 `CHANGELOG.md`；
+3. 打标签并推送：`git tag v1.0.0 && git push origin v1.0.0`；
+4. `release.yml` 会先校验标签版本与 `pom.xml` 版本一致，再执行 `./mvnw -Prelease deploy`，
+   把 jar、sources jar、javadoc jar 发布到 GitHub Packages；
+5. 发布完成后，把 `pom.xml` 版本提升为下一个 `-SNAPSHOT`（例如 `1.0.1-SNAPSHOT`），保持主干为开发版本。
+
+`release.yml` 支持手动触发（`workflow_dispatch`）：只做构建与测试，不会发布，可用于发布前预检。
+
+使用方从 GitHub Packages 拉取本依赖时，需要在 `~/.m2/settings.xml` 中配置仓库凭据
+（Token 需要 `read:packages` 权限）：
+
+```xml
+<servers>
+  <server>
+    <id>github</id>
+    <username>你的GitHub用户名</username>
+    <password>你的Personal Access Token</password>
+  </server>
+</servers>
+```
