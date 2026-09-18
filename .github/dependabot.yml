@@ -1,7 +1,8 @@
 version: 2
 updates:
+  # Maven 工程位于子目录，directory 必须指向 pom.xml 所在目录
   - package-ecosystem: maven
-    directory: "/"
+    directory: "/access-monitor-spring-boot-starter"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5

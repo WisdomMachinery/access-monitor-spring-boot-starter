@@ -9,6 +9,10 @@ permissions:
   contents: read
   packages: write
 
+defaults:
+  run:
+    working-directory: access-monitor-spring-boot-starter
+
 jobs:
   release:
     name: Publish to GitHub Packages

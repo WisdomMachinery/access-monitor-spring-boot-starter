@@ -1,7 +1,8 @@
 name: CI
 
-# 不限制分支：两个仓库的默认分支命名不一致（main / Master），
-# 限制分支容易导致 CI 静默不触发。
+# 本仓库的工程位于子目录 access-monitor-spring-boot-starter/，
+# GitHub 只认仓库根目录下的 .github/workflows，因此工作流放在根目录，
+# 再用 defaults 把 run 步骤切到工程目录。
 on:
   push:
   pull_request:
@@ -9,6 +10,10 @@ on:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: access-monitor-spring-boot-starter
 
 jobs:
   build:

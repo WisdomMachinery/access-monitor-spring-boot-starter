@@ -20,6 +20,12 @@
 - 修正 `max-queue-size-per-key: 0` 时抛 `IllegalArgumentException` 的问题
   （超限请求会退化成 HTTP 500），现在按「不提供排队能力」直接拒绝。
 - `AccessMonitorApplication` 从 `src/main` 移到 `src/test`，不再打包进发布产物。
+- 修复 CI / Dependabot 从不触发的问题：本仓库的 git 根在工程目录的上一级，
+  而 `.github/` 原先位于 `access-monitor-spring-boot-starter/` 子目录内，GitHub 不会读取；
+  现已移动到仓库根目录，并由流水线 `defaults.run.working-directory` 指向工程目录。
+- 修复 `mvnw` 在 Linux 下无法读取 `distributionUrl` 的问题：`maven-wrapper.properties`
+  末行缺少结尾换行时，POSIX sh 的 while read 在 EOF 处不会执行循环体，导致变量为空；
+  已为缺结尾换行的文本文件补上换行，并增加 `distributionSha256Sum` 校验 Maven 分发包的完整性。
 
 ### 变更
 
