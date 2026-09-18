@@ -1,0 +1,14 @@
+# 统一换行符，避免 Windows 检出 CRLF 与 CI(Linux) 冲突
+* text=auto eol=lf
+
+# Windows 批处理必须使用 CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# 二进制文件不做换行转换
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.zip binary
