@@ -6,9 +6,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
+# 工程位于子目录，run 步骤统一切到工程目录
 defaults:
   run:
     working-directory: access-monitor-spring-boot-starter
@@ -52,3 +53,10 @@ jobs:
           MAVEN_USERNAME: ${{ github.actor }}
           MAVEN_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./mvnw -B --no-transfer-progress -Prelease deploy -DskipTests
+
+      # 包发布成功后再建 GitHub Release（说明取自带注释的 tag message）
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-from-tag --verify-tag
