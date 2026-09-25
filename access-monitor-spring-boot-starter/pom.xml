@@ -101,7 +101,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.6.3</version>
+                        <version>3.12.0</version>
                         <configuration>
                             <!-- 中文注释中的 HTML 片段较多，关闭 doclint 避免因格式告警中断发布 -->
                             <doclint>none</doclint>
